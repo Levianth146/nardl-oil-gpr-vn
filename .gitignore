@@ -1,0 +1,16 @@
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj.user
+.DS_Store
+Thumbs.db
+~$*
+*.docx
+*.tmp
+# cache cào Petrolimex (chạy lại được từ script)
+data/raw/gas_retail/plx_out/
+plx_out/img/
+plx_out/html/
+plx_out/done/
+plx_out/ocr_txt/

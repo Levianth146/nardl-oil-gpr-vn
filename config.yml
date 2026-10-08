@@ -1,0 +1,21 @@
+sample:
+  start: "2012-01-01"
+  end: "2026-07-01"
+  n_months: 175
+  buffer_start: "2011-09-01"   # 4 tháng đệm cho độ trễ (chỉ GAS_RETAIL có sẵn)
+nardl:
+  max_lag: 4
+  max_params: 25
+  grid_size: 500
+  selection: "BIC"
+  bg_order: 6
+dummies:
+  covid: [null, null]      # TODO: nhóm chốt [bắt đầu, kết thúc]
+  tight22: [null, "2022-12-01"]   # TODO: nhóm chốt (kết thúc 12/2022 hoặc 06/2023)
+gpr_state:
+  thresholds: [0.50, 0.75]
+  gpr_high_percentile: 0.90
+multipliers:
+  horizon: 24
+  bootstrap_reps: 1000
+seed: 20261018
