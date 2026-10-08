@@ -1,46 +1,46 @@
-# nardl_vn — Cú sốc giá dầu & rủi ro địa chính trị → CPI và VN-Index (NARDL, R)
+# nardl-oil-gpr-vn
 
-## Chạy nhanh
+Tác động bất đối xứng của cú sốc giá dầu và rủi ro địa chính trị (GPR) đến CPI và VN-Index của Việt Nam, mô hình NARDL, dữ liệu tháng 01/2012–07/2026 (175 quan sát), ngôn ngữ R.
+
+## Chạy lại
 ```r
-# 1) Cài gói (một lần): install.packages(c("urca","sandwich","lmtest","tseries","strucchange","ggplot2","writexl","openxlsx","readxl","zoo"))
-# 2) Mở R tại THƯ MỤC GỐC dự án này
-source("tools/make_synthetic_raw.R")     # CHỈ để thử: sinh 18 file dữ liệu GIẢ vào data/raw/ (xóa đi khi có dữ liệu thật)
-source("tests/test_engine.R")            # 22 kiểm thử lõi phải PASS
-source("scripts/99_run_all.R")           # chạy 01 -> 08; kết quả ở output/tables, output/figures
+# R >= 4.4
+renv::restore()
+source("run_all.R")
 ```
-Dữ liệu thật: bỏ 18 file `data/raw/<TÊN>.csv` (cột `date,value`) theo bảng dưới, **không sửa code**. Mọi tham số ở `config/config.R`.
+Kết quả sinh ra nằm trong `outputs/tables`, `outputs/figures`. Bản đóng băng dùng để viết luận: `outputs/frozen/`.
 
-## Hợp đồng dữ liệu thô (data/raw/<FILE>.csv, cột date,value; date dạng YYYY-MM-DD)
-| File | Tần suất | Gộp về tháng | Ghi chú |
-|---|---|---|---|
-| CPI_MOM, CPI_CORE_MOM | tháng | — | chỉ số "tháng trước = 100" (GSO); code tự nối chuỗi + khử mùa Tết |
-| VNINDEX | ngày | cuối tháng (và bình quân cho VNINDEX_AVG) | |
-| OIL (Brent), OIL_WTI | ngày | bình quân tháng | |
-| GPR, GPR_THREAT, GPR_ACT | tháng | — | Caldara–Iacoviello |
-| EXCH, VIX | ngày | cuối tháng | |
-| INTEREST, FEDRATE, IIP, M2, GDEMAND, CPI_US | tháng | — | GDEMAND: chỉ số cầu toàn cầu (vd. Kilian) |
-| GAS_RETAIL | sự kiện (ngày hiệu lực, giá) | bình quân THEO SỐ NGÀY | chuỗi bậc thang |
-| FFLOW | tháng | — | dòng vốn ngoại ròng; tự chuẩn hóa thành FFLOW_S |
+## Cấu trúc
+```
+config.yml        tham số chung (mẫu, lag, ngưỡng GPR, seed)
+run_all.R         chạy nối mọi bước
+data/raw/         18 file CSV (date,value), mỗi biến một file, KHÔNG sửa tay
+data/processed/   panel_monthly.csv, panel_derived.csv
+data/data_dictionary.md
+R/                lõi NARDL, chẩn đoán, hàm dùng chung
+scripts/          01..07, mỗi file một việc
+outputs/          tables/ figures/ frozen/
+docs/             ghi chú phương pháp, issues
+```
 
-## Kiến trúc & người phụ trách (nhóm 5 người)
-| Module | File | Người |
-|---|---|---|
-| Data: nạp, đồng bộ tần suất, nối CPI, khử Tết | `R/utils_data.R`, `R/build_panel.R`, `scripts/01` | P1 |
-| Variables/Tests: log, tổng riêng phần, dummy, GPR trực giao, ADF/PP/KPSS/ZA, GTY | `R/utils_vars.R`, `R/utils_tests.R`, `scripts/02` | P2 |
-| Engine: lag, ECM, bounds, Wald, dài hạn, nhân tử, bootstrap, chẩn đoán | `R/nardl_engine.R`, `scripts/03`, `04`, `tests/` | P3 |
-| Channels/States: kênh truyền dẫn, trạng thái GPR | `R/channels.R`, `scripts/05`, `06` | P4 |
-| Robustness/Report: bền vững, hình, bảng tổng hợp | `R/utils_plot.R`, `scripts/07`, `08`, `99` | P5 |
+## Phân công mô hình
+| Việc | Nội dung | Script | Branch | Người làm |
+|---|---|---|---|---|
+| 1 | Thu thập và làm sạch 18 biến, gộp tháng | `01_clean_merge.R` | `viec1/data` | |
+| 2 | Biến phái sinh, ADF/PP/KPSS/ZA | `02_derive_unitroot.R` | `viec2/derive-unitroot` | |
+| 3 | Lõi NARDL + Mô hình 1 (CPI) | `R/nardl_core.R`, `03_model_cpi.R` | `viec3/nardl-core-cpi` | |
+| 4 | Mô hình 2 (VN-Index), nhân tử động, tích hợp | `04_*`, `05_*`, `run_all.R` | `viec4/vnindex-multipliers` | |
+| 5 | Trạng thái, kênh truyền dẫn, kiểm định bền | `06_*`, `07_*` | `viec5/state-channels-robust` | |
 
-## API lõi (R/nardl_engine.R)
-`make_spec(y, asym=list(OIL=c("OIL_P","OIL_N"),...), z, dummies)` → `run_nardl(df, spec, cfg, lags=NULL, do_boot)`
-trả: `lags, fit, coef, bounds, longrun, symmetry, mult, mult_ci, diag`.
-Quy ước nhân tử: `mp` = phản ứng với +1 ở x; `mn` = phản ứng với GIẢM 1 ở x; `asym = mp + mn` (=0 nếu đối xứng).
+Chi tiết đầu vào/đầu ra từng việc: `docs/issues/`.
 
-## Cổng kiểm soát (không qua cổng thì không đi tiếp)
-G1 (sau 02): không biến nào I(2). G2 (sau 03): bounds kết luận rõ + BG(6) không bác bỏ; nếu "vùng không kết luận" thì dùng t-bounds/ARDL dừng và nói rõ.
-G3 (sau 05): chỉ diễn giải Sobel với trung gian I(1); cột `flag` cảnh báo ρ≈0.
+## Quy trình làm việc (Git)
+- `main`: chỉ nhận PR từ `dev`, đánh tag mốc. `dev`: nhánh tích hợp.
+- Mỗi người tạo nhánh từ `dev` theo bảng trên, commit nhỏ, mở PR vào `dev`, nhờ 1 bạn review trước khi merge.
+- Mốc: `v0.1-data` (panel chốt) → `v0.2-frozen` (kết quả đóng băng) → `v1.0` (nộp).
+- Quy ước commit: `data: …`, `model: …`, `analysis: …`, `fix: …`.
+- Quy ước tên file đầu ra theo mục luận: `t4_2_nardl_cpi.csv`, `f4_4_multipliers_cpi.png`.
+- Luận văn viết trong Word/Google Docs, không đưa vào repo (`.docx` bị `.gitignore`).
 
-## Lưu ý phương pháp
-- Tổng riêng phần của biến I(0) (vd. LGPR nếu ADF/KPSS bảo dừng) vẫn là chuỗi "giả I(1)": cần nêu rõ, và chạy thêm biến thể GPR trực giao / GPR dạng mức + trạng thái.
-- Kết quả trên dữ liệu giả lập CHỈ dùng để kiểm tra code, không có ý nghĩa kinh tế.
-- Bounds test dùng ngưỡng mô phỏng theo n và k thực tế (cache ở `output/rds`); báo cáo cuối nên tăng `bounds_reps=20000`, `boot_B=1000`.
+## Lưu ý dữ liệu
+- GAS_RETAIL: giá bán lẻ RON 95-III vùng 1 của Petrolimex, bình quân theo số ngày giữa các kỳ điều chỉnh. Xem `data/raw/gas_retail/`.
